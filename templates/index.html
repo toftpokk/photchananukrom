@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WordWise Dictionary</title>
+    <title>Photchananukrom</title>
     <script src="https://unpkg.com/htmx.org@2.0.4"
         integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+"
         crossorigin="anonymous"></script>
@@ -17,9 +17,9 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #3a3a3a;
             min-height: 100vh;
-            color: #333;
+            color: #fff;
         }
 
         .container {
@@ -30,61 +30,62 @@
 
         .header {
             text-align: center;
-            margin-bottom: 40px;
             color: white;
         }
 
         .header h1 {
             font-size: 3rem;
-            margin-bottom: 10px;
+            margin-bottom: 4px;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .header p {
             font-size: 1.2rem;
             opacity: 0.9;
+            margin-bottom: 8px;
         }
 
         .search-container {
-            background: white;
+            border: #4a4a4a 3px solid;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             border-radius: 15px;
             padding: 30px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             margin-bottom: 30px;
         }
 
         .search-box {
             position: relative;
             margin-bottom: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background: #4a4a4a;
+        }
+
+        .search-input-box {
+            position: relative;
+            overflow: hidden;
         }
 
         .search-input {
+            color: #fff;
             width: 100%;
-            padding: 15px 50px 15px 20px;
-            font-size: 1.1rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 50px;
+            font-size: 1.25rem;
+            background: #4a4a4a;
+            margin: 4px 8px;
             outline: none;
-            transition: all 0.3s ease;
-        }
-
-        .search-input:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border: none;
+            height: 30px;
         }
 
         .search-btn {
-            position: absolute;
-            right: 5px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 50px;
+            color: #fff;
+            float: right;
             cursor: pointer;
-            transition: background 0.3s ease;
+            background: #667eea;
+            border: none;
+            height: 38px;
+            width: 38px;
+            border-radius: 8px;
         }
 
         .search-btn:hover {
@@ -99,12 +100,19 @@
         }
 
         .quick-link {
-            background: #f8f9fa;
+            background: #4a4a4a;
             border: 1px solid #e9ecef;
             padding: 8px 16px;
             border-radius: 20px;
             cursor: pointer;
             transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .quick-links-placeholder {
+            border: 1px;
+            padding: 8px 16px;
+            border-radius: 20px;
             font-size: 0.9rem;
         }
 
@@ -115,10 +123,10 @@
         }
 
         .results-container {
-            background: white;
             border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             overflow: hidden;
+            border: #4a4a4a 3px solid;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
         }
 
         .word-result {
@@ -144,7 +152,7 @@
         }
 
         .pronunciation {
-            color: #666;
+            color: #8c8c8c;
             font-style: italic;
             font-size: 1.1rem;
         }
@@ -200,7 +208,7 @@
         .example {
             margin-top: 8px;
             font-style: italic;
-            color: #666;
+            color: #8c8c8c;
             padding-left: 20px;
             border-left: 3px solid #e0e7ff;
         }
@@ -224,7 +232,7 @@
         }
 
         .word-tag {
-            background: #f8f9fa;
+            background: #4a4a4a;
             padding: 5px 12px;
             border-radius: 15px;
             font-size: 0.9rem;
@@ -237,22 +245,24 @@
             color: white;
         }
 
+
         .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
+            color: #8c8c8c;
+            opacity: 0;
+        }
+
+        .htmx-request.loading {
+            opacity: 100%;
         }
 
         .error {
-            text-align: center;
             padding: 40px;
-            color: #d32f2f;
+            color: #eb5959;
         }
 
         .welcome-message {
-            text-align: center;
             padding: 60px 40px;
-            color: #666;
+            color: #8c8c8c;
         }
 
         .welcome-message h3 {
@@ -283,48 +293,42 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>WordWise Dictionary</h1>
-            <p>Discover the meaning of words with intelligent search</p>
+            <h1>Photchananukrom</h1>
+            <p>พจนานุกรม</p>
         </div>
 
         <div class="search-container">
-            <form hx-post="/search" hx-target="#results" hx-trigger="submit" hx-indicator=".loading">
+            <form hx-post="/search" hx-target="#results" hx-trigger="submit">
                 <div class="search-box">
-                    <input type="text" name="word" class="search-input" placeholder="Enter a word to search..."
-                        hx-post="/search" hx-target="#results" hx-trigger="keyup changed delay:500ms"
-                        hx-indicator=".loading" autocomplete="off">
-                    <button type="submit" class="search-btn">🔍</button>
+                    <button type="submit" class="search-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="lucide lucide-search-icon lucide-search">
+                            <path d="m21 21-4.34-4.34" />
+                            <circle cx="11" cy="11" r="8" />
+                        </svg>
+                    </button>
+                    <div class="search-input-box">
+                        <input type="text" name="word" class="search-input" placeholder="ภาษาไทย English, or Text"
+                            hx-post="/search" hx-target="#results" hx-trigger="keyup changed delay:500ms"
+                            hx-indicator=".loading" autocomplete="off">
+                    </div>
                 </div>
             </form>
 
-            <div class="quick-links">
-                <div class="quick-link" hx-post="/search" hx-vals='{"word": "serendipity"}' hx-target="#results">
-                    serendipity</div>
-                <div class="quick-link" hx-post="/search" hx-vals='{"word": "ephemeral"}' hx-target="#results">ephemeral
-                </div>
-                <div class="quick-link" hx-post="/search" hx-vals='{"word": "ubiquitous"}' hx-target="#results">
-                    ubiquitous</div>
-                <div class="quick-link" hx-post="/search" hx-vals='{"word": "perspicacious"}' hx-target="#results">
-                    perspicacious</div>
-                <div class="quick-link" hx-post="/search" hx-vals='{"word": "eloquent"}' hx-target="#results">eloquent
-                </div>
+            <div class="quick-links" hx-get="/quick-links" hx-trigger="load">
+                <p class="quick-links-placeholder">Loading Quick Links...</p>
             </div>
         </div>
 
         <div id="results" class="results-container">
             <div class="welcome-message">
-                <h3>Welcome to WordWise!</h3>
-                <p>Start typing in the search box above to discover word meanings, pronunciations, and examples. Try
-                    clicking on one of the suggested words to get started.</p>
+                <h3>Photchananukrom</h3>
+                <p>น. เว็บไซต์รวบรวมคำและความหมายภาษาไทย ดู พจนานุกรม</p>
             </div>
         </div>
 
 
-        <div class="loading">
-            <div class="loading-spinner htmx-indicator"></div>
-            <h3>Searching...</h3>
-            <p>Looking up your word...</p>
-        </div>
     </div>
 
 </body>

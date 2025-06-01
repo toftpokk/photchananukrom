@@ -341,13 +341,23 @@ async fn index(data: web::Data<AppState>) -> impl Responder {
     HttpResponse::Ok().content_type("text/html").body(html)
 }
 
-// Health check endpoint
 #[get("/health")]
 async fn health() -> impl Responder {
     HttpResponse::Ok().json(serde_json::json!({
         "status": "healthy",
         "service": "dictionary-api"
     }))
+}
+
+#[get("/quick-links")]
+async fn quick_links() -> impl Responder {
+    let quick_links = r##"
+    <div class="quick-link" hx-post="/search" hx-vals='{"word": "eloquent"}' hx-target="#results">eloquent
+    </div>
+    "##;
+    return HttpResponse::Ok()
+        .content_type("text/html")
+        .body(quick_links);
 }
 
 #[post("/search")]
@@ -358,8 +368,8 @@ async fn search_word(form: web::Form<SearchForm>) -> impl Responder {
     if search_word.is_empty() {
         let welcome_html = r#"
             <div class="welcome-message">
-                <h3>Welcome to WordWise!</h3>
-                <p>Start typing in the search box above to discover word meanings, pronunciations, and examples.</p>
+                <h3>Photchananukrom</h3>
+                <p>น. เว็บไซต์รวบรวมคำและความหมายภาษาไทย ดู พจนานุกรม</p>
             </div>
         "#;
         return HttpResponse::Ok()
@@ -412,8 +422,10 @@ async fn main() -> std::io::Result<()> {
                 version: version.clone(),
                 build_date: build_date.clone(),
             }))
+            .service(health)
             .service(index)
             .service(search_word)
+            .service(quick_links)
     })
     .bind(("127.0.0.1", 8080))?
     .run()
