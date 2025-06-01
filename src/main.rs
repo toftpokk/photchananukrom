@@ -5,222 +5,18 @@ use actix_web::{
     cookie::time::{OffsetDateTime, format_description::well_known::Rfc3339},
     get, post, web,
 };
+use diesel::{QueryDsl, SqliteConnection};
+use models::{DefinitionRepository, WordRepository};
+use schema::definitions;
 use serde::{Deserialize, Serialize};
 
 mod database;
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct Meaning {
-    definition: String,
-    example: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct Definition {
-    #[serde(rename = "partOfSpeech")]
-    part_of_speech: String,
-    meanings: Vec<Meaning>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct WordData {
-    word: String,
-    pronunciation: String,
-    definitions: Vec<Definition>,
-    synonyms: Option<Vec<String>>,
-    antonyms: Option<Vec<String>>,
-}
+mod models;
+mod schema;
 
 #[derive(Debug, Deserialize)]
 struct SearchForm {
     word: String,
-}
-
-// Mock dictionary data - replace with database or API calls
-fn get_mock_dictionary() -> HashMap<String, WordData> {
-    let mut dict = HashMap::new();
-
-    dict.insert("serendipity".to_string(), WordData {
-        word: "serendipity".to_string(),
-        pronunciation: "/ˌserənˈdipədē/".to_string(),
-        definitions: vec![Definition {
-            part_of_speech: "noun".to_string(),
-            meanings: vec![Meaning {
-                definition: "The occurrence and development of events by chance in a happy or beneficial way".to_string(),
-                example: Some("A fortunate stroke of serendipity brought the two old friends together.".to_string()),
-            }],
-        }],
-        synonyms: Some(vec!["chance".to_string(), "fortune".to_string(), "luck".to_string(), "fate".to_string()]),
-        antonyms: Some(vec!["misfortune".to_string(), "design".to_string(), "intention".to_string()]),
-    });
-
-    dict.insert(
-        "ephemeral".to_string(),
-        WordData {
-            word: "ephemeral".to_string(),
-            pronunciation: "/əˈfem(ə)rəl/".to_string(),
-            definitions: vec![Definition {
-                part_of_speech: "adjective".to_string(),
-                meanings: vec![Meaning {
-                    definition: "Lasting for a very short time".to_string(),
-                    example: Some(
-                        "The beauty of cherry blossoms is ephemeral, lasting only a few weeks."
-                            .to_string(),
-                    ),
-                }],
-            }],
-            synonyms: Some(vec![
-                "temporary".to_string(),
-                "fleeting".to_string(),
-                "transient".to_string(),
-                "brief".to_string(),
-            ]),
-            antonyms: Some(vec![
-                "permanent".to_string(),
-                "lasting".to_string(),
-                "enduring".to_string(),
-                "eternal".to_string(),
-            ]),
-        },
-    );
-
-    dict.insert(
-        "ubiquitous".to_string(),
-        WordData {
-            word: "ubiquitous".to_string(),
-            pronunciation: "/yo͞oˈbikwədəs/".to_string(),
-            definitions: vec![Definition {
-                part_of_speech: "adjective".to_string(),
-                meanings: vec![Meaning {
-                    definition: "Present, appearing, or found everywhere".to_string(),
-                    example: Some(
-                        "Smartphones have become ubiquitous in modern society.".to_string(),
-                    ),
-                }],
-            }],
-            synonyms: Some(vec![
-                "omnipresent".to_string(),
-                "pervasive".to_string(),
-                "universal".to_string(),
-                "widespread".to_string(),
-            ]),
-            antonyms: Some(vec![
-                "rare".to_string(),
-                "scarce".to_string(),
-                "absent".to_string(),
-                "limited".to_string(),
-            ]),
-        },
-    );
-
-    dict.insert(
-        "perspicacious".to_string(),
-        WordData {
-            word: "perspicacious".to_string(),
-            pronunciation: "/ˌpərspəˈkāSHəs/".to_string(),
-            definitions: vec![Definition {
-                part_of_speech: "adjective".to_string(),
-                meanings: vec![Meaning {
-                    definition: "Having a ready insight into and understanding of things"
-                        .to_string(),
-                    example: Some(
-                        "Her perspicacious analysis of the market trends impressed the board."
-                            .to_string(),
-                    ),
-                }],
-            }],
-            synonyms: Some(vec![
-                "perceptive".to_string(),
-                "astute".to_string(),
-                "shrewd".to_string(),
-                "insightful".to_string(),
-            ]),
-            antonyms: Some(vec![
-                "obtuse".to_string(),
-                "dull".to_string(),
-                "unperceptive".to_string(),
-                "naive".to_string(),
-            ]),
-        },
-    );
-
-    dict.insert(
-        "eloquent".to_string(),
-        WordData {
-            word: "eloquent".to_string(),
-            pronunciation: "/ˈeləkwənt/".to_string(),
-            definitions: vec![Definition {
-                part_of_speech: "adjective".to_string(),
-                meanings: vec![
-                    Meaning {
-                        definition: "Fluent or persuasive in speaking or writing".to_string(),
-                        example: Some(
-                            "The politician delivered an eloquent speech that moved the audience."
-                                .to_string(),
-                        ),
-                    },
-                    Meaning {
-                        definition: "Clearly expressing or indicating something".to_string(),
-                        example: Some(
-                            "Her silence was eloquent testimony to her disapproval.".to_string(),
-                        ),
-                    },
-                ],
-            }],
-            synonyms: Some(vec![
-                "articulate".to_string(),
-                "fluent".to_string(),
-                "expressive".to_string(),
-                "persuasive".to_string(),
-            ]),
-            antonyms: Some(vec![
-                "inarticulate".to_string(),
-                "tongue-tied".to_string(),
-                "hesitant".to_string(),
-                "unclear".to_string(),
-            ]),
-        },
-    );
-
-    dict.insert(
-        "aqaa".to_string(),
-        WordData {
-            word: "eloquent".to_string(),
-            pronunciation: "/ˈeləkwənt/".to_string(),
-            definitions: vec![Definition {
-                part_of_speech: "adjective".to_string(),
-                meanings: vec![
-                    Meaning {
-                        definition: "Fluent or persuasive in speaking or writing".to_string(),
-                        example: Some(
-                            "The politician delivered an eloquent speech that moved the audience."
-                                .to_string(),
-                        ),
-                    },
-                    Meaning {
-                        definition: "Clearly expressing or indicating something".to_string(),
-                        example: Some(
-                            "Her silence was eloquent testimony to her disapproval.".to_string(),
-                        ),
-                    },
-                ],
-            }],
-            synonyms: Some(vec![
-                "articulate".to_string(),
-                "fluent".to_string(),
-                "expressive".to_string(),
-                "persuasive".to_string(),
-            ]),
-            antonyms: Some(vec![
-                "inarticulate".to_string(),
-                "tongue-tied".to_string(),
-                "hesitant".to_string(),
-                "unclear".to_string(),
-            ]),
-        },
-    );
-
-    dict
 }
 
 // Helper function to generate HTML for word tags
@@ -238,100 +34,35 @@ fn generate_word_tags(words: &[String], tag_type: &str) -> String {
 }
 
 // Generate HTML for word result
-fn generate_word_result_html(word_data: &WordData) -> String {
-    let definitions_html = word_data
-        .definitions
+fn generate_word_result_html(word: &models::Word, definitions: Vec<models::Definition>) -> String {
+    let definitions_html = definitions
         .iter()
         .map(|def| {
-            let meanings_html = def
-                .meanings
-                .iter()
-                .map(|meaning| {
-                    let example_html = meaning
-                        .example
-                        .as_ref()
-                        .map(|ex| format!(r#"<div class="example">"{}"</div>"#, ex))
-                        .unwrap_or_default();
-
-                    format!(
-                        r#"<div class="definition">
-                            <div class="definition-text">{}</div>
-                            {}
-                        </div>"#,
-                        meaning.definition, example_html
-                    )
-                })
-                .collect::<Vec<_>>()
-                .join("");
-
             format!(
                 r#"<div class="definition-group">
-                    <div class="part-of-speech">{}</div>
+                    <div class="definition-text">{}</div>
                     {}
                 </div>"#,
-                def.part_of_speech, meanings_html
+                def.definition_header, def.definition,
             )
         })
         .collect::<Vec<_>>()
         .join("");
 
-    let synonyms_html = word_data
-        .synonyms
-        .as_ref()
-        .map(|synonyms| {
-            format!(
-                r#"<div class="synonyms">
-                    <h4>Synonyms:</h4>
-                    <div class="word-list">
-                        {}
-                    </div>
-                </div>"#,
-                generate_word_tags(synonyms, "synonym")
-            )
-        })
-        .unwrap_or_default();
-
-    let antonyms_html = word_data
-        .antonyms
-        .as_ref()
-        .map(|antonyms| {
-            format!(
-                r#"<div class="antonyms">
-                    <h4>Antonyms:</h4>
-                    <div class="word-list">
-                        {}
-                    </div>
-                </div>"#,
-                generate_word_tags(antonyms, "antonym")
-            )
-        })
-        .unwrap_or_default();
-
     format!(
         r#"<div class="word-result">
             <div class="word-header">
                 <div class="word-title">{}</div>
-                <div class="pronunciation">{}</div>
-                <button class="audio-btn" onclick="playPronunciation('{}')">🔊 Play</button>
             </div>
-            
+
             <div class="definitions">
                 {}
             </div>
-            
-            {}
-            {}
         </div>"#,
-        word_data.word,
-        word_data.pronunciation,
-        word_data.word,
-        definitions_html,
-        synonyms_html,
-        antonyms_html
+        word.word, definitions_html,
     )
 }
 
-#[derive(Clone)]
 struct AppState {
     version: String,
     build_date: String,
@@ -344,10 +75,12 @@ async fn index(data: web::Data<AppState>) -> impl Responder {
 }
 
 #[get("/health")]
-async fn health() -> impl Responder {
+async fn health(data: web::Data<AppState>) -> impl Responder {
     HttpResponse::Ok().json(serde_json::json!({
         "status": "healthy",
-        "service": "dictionary-api"
+        "service": "dictionary-api",
+        "version": data.version,
+        "build_date": data.build_date,
     }))
 }
 
@@ -364,6 +97,9 @@ async fn quick_links() -> impl Responder {
 
 #[post("/search")]
 async fn search_word(form: web::Form<SearchForm>) -> impl Responder {
+    let mut connection = database::establish_connection();
+
+    // TODO dependency injection
     let search_word = form.word.trim().to_lowercase();
 
     // Handle empty search
@@ -379,26 +115,47 @@ async fn search_word(form: web::Form<SearchForm>) -> impl Responder {
             .body(welcome_html);
     }
 
-    let dictionary = get_mock_dictionary();
+    // let dictionary = get_mock_dictionary();
 
-    match dictionary.get(&search_word) {
-        Some(word_data) => {
-            let html = generate_word_result_html(word_data);
-            HttpResponse::Ok().content_type("text/html").body(html)
-        }
-        None => {
-            let error_html = format!(
-                r#"<div class="error">
-                    <h3>Word not found</h3>
-                    <p>Sorry, we couldn't find "{}" in our dictionary. Try checking the spelling or searching for a different word.</p>
-                </div>"#,
-                search_word
-            );
-            HttpResponse::Ok()
-                .content_type("text/html")
-                .body(error_html)
-        }
-    }
+    let error_html = format!(
+        r#"<div class="error">
+            <h3>Word not found</h3>
+            <p>Sorry, we couldn't find "{}" in our dictionary. Try checking the spelling or searching for a different word.</p>
+        </div>"#,
+        search_word
+    );
+
+    let word = match WordRepository::find_by_word(&mut connection, search_word) {
+        Ok(word) => word,
+        Err(err) => match err {
+            models::RepositoryError::NotFound => {
+                return HttpResponse::Ok()
+                    .content_type("text/html")
+                    .body(error_html);
+            }
+            err => {
+                panic!("{}", err)
+            }
+        },
+    };
+
+    let definitions = match DefinitionRepository::find_by_word(&mut connection, &word) {
+        Ok(defs) => defs,
+        Err(err) => match err {
+            models::RepositoryError::NotFound => {
+                return HttpResponse::Ok()
+                    .content_type("text/html")
+                    .body(error_html);
+            }
+            err => {
+                panic!("{}", err)
+            }
+        },
+    };
+
+    let html = generate_word_result_html(&word, definitions);
+
+    HttpResponse::Ok().content_type("text/html").body(html)
 }
 
 #[actix_web::main]
@@ -417,9 +174,6 @@ async fn main() -> std::io::Result<()> {
         Ok(version) => version,
         Err(_) => "".to_string(),
     };
-
-    let pool = database::create_pool();
-
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(AppState {
