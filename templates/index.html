@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WordWise Dictionary</title>
+    <script src="https://unpkg.com/htmx.org@2.0.4"
+        integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+"
+        crossorigin="anonymous"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .search-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .search-box {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 15px 50px 15px 20px;
+            font-size: 1.1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 50px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-btn {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .search-btn:hover {
+            background: #5a6fd8;
+        }
+
+        .quick-links {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .quick-link {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .quick-link:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .results-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .word-result {
+            padding: 30px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .word-result:last-child {
+            border-bottom: none;
+        }
+
+        .word-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .word-title {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .pronunciation {
+            color: #666;
+            font-style: italic;
+            font-size: 1.1rem;
+        }
+
+        .audio-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .definitions {
+            margin-bottom: 20px;
+        }
+
+        .definition-group {
+            margin-bottom: 25px;
+        }
+
+        .part-of-speech {
+            display: inline-block;
+            background: #e8f2ff;
+            color: #667eea;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .definition {
+            margin-bottom: 15px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .definition::before {
+            content: "•";
+            color: #667eea;
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+
+        .definition-text {
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        .example {
+            margin-top: 8px;
+            font-style: italic;
+            color: #666;
+            padding-left: 20px;
+            border-left: 3px solid #e0e7ff;
+        }
+
+        .synonyms,
+        .antonyms {
+            margin-top: 20px;
+        }
+
+        .synonyms h4,
+        .antonyms h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .word-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .word-tag {
+            background: #f8f9fa;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .word-tag:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: #d32f2f;
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 60px 40px;
+            color: #666;
+        }
+
+        .welcome-message h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .word-title {
+                font-size: 2rem;
+            }
+
+            .search-container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>WordWise Dictionary</h1>
+            <p>Discover the meaning of words with intelligent search</p>
+        </div>
+
+        <div class="search-container">
+            <form hx-post="/search" hx-target="#results" hx-trigger="submit" hx-indicator=".loading">
+                <div class="search-box">
+                    <input type="text" name="word" class="search-input" placeholder="Enter a word to search..."
+                        hx-post="/search" hx-target="#results" hx-trigger="keyup changed delay:500ms"
+                        hx-indicator=".loading" autocomplete="off">
+                    <button type="submit" class="search-btn">🔍</button>
+                </div>
+            </form>
+
+            <div class="quick-links">
+                <div class="quick-link" hx-post="/search" hx-vals='{"word": "serendipity"}' hx-target="#results">
+                    serendipity</div>
+                <div class="quick-link" hx-post="/search" hx-vals='{"word": "ephemeral"}' hx-target="#results">ephemeral
+                </div>
+                <div class="quick-link" hx-post="/search" hx-vals='{"word": "ubiquitous"}' hx-target="#results">
+                    ubiquitous</div>
+                <div class="quick-link" hx-post="/search" hx-vals='{"word": "perspicacious"}' hx-target="#results">
+                    perspicacious</div>
+                <div class="quick-link" hx-post="/search" hx-vals='{"word": "eloquent"}' hx-target="#results">eloquent
+                </div>
+            </div>
+        </div>
+
+        <div id="results" class="results-container">
+            <div class="welcome-message">
+                <h3>Welcome to WordWise!</h3>
+                <p>Start typing in the search box above to discover word meanings, pronunciations, and examples. Try
+                    clicking on one of the suggested words to get started.</p>
+            </div>
+        </div>
+
+
+        <div class="loading">
+            <div class="loading-spinner htmx-indicator"></div>
+            <h3>Searching...</h3>
+            <p>Looking up your word...</p>
+        </div>
+    </div>
+
+</body>
+
+</html>
