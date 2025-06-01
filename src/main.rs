@@ -7,6 +7,8 @@ use actix_web::{
 };
 use serde::{Deserialize, Serialize};
 
+mod database;
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct Meaning {
     definition: String,
@@ -415,6 +417,8 @@ async fn main() -> std::io::Result<()> {
         Ok(version) => version,
         Err(_) => "".to_string(),
     };
+
+    let pool = database::create_pool();
 
     HttpServer::new(move || {
         App::new()
