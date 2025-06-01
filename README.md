@@ -4,3 +4,6 @@
 3. diesel migration run
 4. diesel migration redo (to recheck)
 
+## Dev
+
+watchexec -e "rs,html" cargo run
