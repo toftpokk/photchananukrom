@@ -14,8 +14,80 @@ pub struct Word {
 pub struct Definition {
     id: i32,
     word_id: i32,
-    pub definition_header: String,
     pub definition: String,
+    pub definition_header: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct DefinitionBody(Vec<DefinitionBodyChild>);
+
+impl DefinitionBody {
+    pub fn to_string(&self) -> String {
+        self.0
+            .iter()
+            .map(|x| match x {
+                DefinitionBodyChild::String(s) => s.to_owned(),
+                DefinitionBodyChild::Tag(t) => t.to_string(),
+            })
+            .collect()
+    }
+}
+
+impl From<&String> for DefinitionBody {
+    fn from(value: &String) -> Self {
+        serde_json::from_str(value).unwrap()
+    }
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct DefinitionBodyTag {
+    #[serde(rename = "type")]
+    tag_type: String,
+    attrs: Option<serde_json::Value>,
+    children: Option<Vec<DefinitionBodyChild>>,
+    to: Option<String>,
+}
+
+impl DefinitionBodyTag {
+    fn to_string(&self) -> String {
+        let children = if let Some(children) = &self.children {
+            children
+        } else {
+            return "".to_string();
+        };
+
+        let child_str: String = children
+            .iter()
+            .map(|x| match x {
+                DefinitionBodyChild::String(s) => s.to_string(),
+                // TODO to_string is potentially unsafe
+                DefinitionBodyChild::Tag(t) => t.to_string(),
+            })
+            .collect();
+        match self.tag_type.as_str() {
+            "br" => "<br>".to_string(),
+            "sup" => format!(r#"<sup>{}</sup>"#, child_str),
+            "sub" => format!(r#"<sub>{}</sub>"#, child_str),
+            "i" => format!(r#"<i>{}</i>"#, child_str),
+            "label-onclick" => format!(
+                r#"<a href="?q={}">{}</a>"#,
+                self.to
+                    .clone()
+                    .unwrap() // TODO potentially unsafe
+                    .replace("lookupWord1('", "")
+                    .replace("')", ""),
+                child_str
+            ),
+            _ => child_str,
+        }
+    }
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(untagged)]
+enum DefinitionBodyChild {
+    String(String),
+    Tag(DefinitionBodyTag),
 }
 
 use diesel::result::Error as DieselError;

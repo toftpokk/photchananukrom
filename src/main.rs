@@ -48,10 +48,10 @@ fn generate_word_tags(words: &[String], tag_type: &str) -> String {
         </div>
         <div class="definitions">
         {% for definition in definitions %}
+            {{ definition.definition_header }}
             <div class="definition-group">
-                <div class="definition-text">{{ definition.definition_header }}</div>
+                <div class="definition-text">{{ definition.definition_body | safe }}</div>
             </div>
-            {{ definition.definition }}
         {% endfor %}
         </div>
     </div>
@@ -59,14 +59,26 @@ fn generate_word_tags(words: &[String], tag_type: &str) -> String {
 )]
 struct WordResultTemplate<'a> {
     title: &'a String,
-    definitions: Vec<models::Definition>,
+    definitions: Vec<Definition>,
+}
+
+pub struct Definition {
+    definition_header: String,
+    definition_body: String,
 }
 
 // Generate HTML for word result
 fn generate_word_result_html(word: &models::Word, definitions: Vec<models::Definition>) -> String {
+    let definition_objs = definitions
+        .iter()
+        .map(|x| Definition {
+            definition_body: models::DefinitionBody::from(&x.definition).to_string(),
+            definition_header: x.definition_header.to_string(),
+        })
+        .collect();
     return WordResultTemplate {
         title: &word.word,
-        definitions: definitions,
+        definitions: definition_objs,
     }
     .render()
     .unwrap();
@@ -75,12 +87,6 @@ fn generate_word_result_html(word: &models::Word, definitions: Vec<models::Defin
 struct AppState {
     version: String,
     build_date: String,
-}
-
-#[get("/")]
-async fn index(data: web::Data<AppState>) -> impl Responder {
-    let html = include_str!("../templates/index.html");
-    HttpResponse::Ok().content_type("text/html").body(html)
 }
 
 #[get("/health")]
@@ -118,6 +124,12 @@ struct ErrorTemplate<'a> {
     search_word: &'a String,
 }
 
+#[get("/")]
+async fn index(data: web::Data<AppState>) -> impl Responder {
+    let html = include_str!("../templates/index.html");
+    HttpResponse::Ok().content_type("text/html").body(html)
+}
+
 #[post("/search")]
 async fn search_word(form: web::Form<SearchForm>) -> impl Responder {
     let mut connection = database::establish_connection();
@@ -144,7 +156,7 @@ async fn search_word(form: web::Form<SearchForm>) -> impl Responder {
     .render()
     .unwrap();
 
-    let word = match WordRepository::find_by_word(&mut connection, search_word) {
+    let word = match WordRepository::find_by_word(&mut connection, search_word.clone()) {
         Ok(word) => word,
         Err(err) => match err {
             models::RepositoryError::NotFound => {
@@ -174,7 +186,20 @@ async fn search_word(form: web::Form<SearchForm>) -> impl Responder {
 
     let html = generate_word_result_html(&word, definitions);
 
-    HttpResponse::Ok().content_type("text/html").body(html)
+    HttpResponse::Ok()
+        .content_type("text/html")
+        .append_header((
+            "HX-Replace-Url",
+            format!(
+                "?q={}",
+                percent_encoding::percent_encode(
+                    search_word.as_bytes(),
+                    percent_encoding::NON_ALPHANUMERIC,
+                )
+                .to_string()
+            ),
+        ))
+        .body(html)
 }
 
 #[actix_web::main]
@@ -204,7 +229,7 @@ async fn main() -> std::io::Result<()> {
             .service(search_word)
             .service(quick_links)
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("0.0.0.0", 8080))?
     .run()
     .await
 }
