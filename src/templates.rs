@@ -34,12 +34,12 @@ impl Definition {
     </div>
     "#
 )]
-pub struct WordResultTemplate<'a> {
+pub struct WordResult<'a> {
     title: &'a String,
     definitions: Vec<Definition>,
 }
 
-impl<'a> WordResultTemplate<'a> {
+impl<'a> WordResult<'a> {
     pub fn new(title: &'a String, definitions: Vec<Definition>) -> Self {
         Self { title, definitions }
     }
@@ -52,11 +52,11 @@ impl<'a> WordResultTemplate<'a> {
         <span class="word-tag" hx-post="/search" hx-vals='{"word": "{{ word }}"}' hx-target="#results">{{ word }}</span>
     "##
 )]
-pub struct WordTagTemplate<'a> {
+pub struct WordTag<'a> {
     word: &'a String,
 }
 
-impl<'a> WordTagTemplate<'a> {
+impl<'a> WordTag<'a> {
     pub fn new(word: &'a String) -> Self {
         Self { word }
     }
@@ -72,12 +72,21 @@ impl<'a> WordTagTemplate<'a> {
     </div>
     "#
 )]
-pub struct ErrorTemplate<'a> {
+pub struct Error<'a> {
     search_word: &'a String,
 }
 
-impl<'a> ErrorTemplate<'a> {
+impl<'a> Error<'a> {
     pub fn new(search_word: &'a String) -> Self {
         Self { search_word }
+    }
+}
+
+#[derive(Template)]
+#[template(path = "index.html")]
+pub struct Index {}
+impl Index {
+    pub fn new() -> Self {
+        Self {}
     }
 }

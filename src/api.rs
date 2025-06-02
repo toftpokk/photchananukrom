@@ -55,9 +55,7 @@ async fn search_word(form: web::Form<SearchForm>) -> impl Responder {
             .body(welcome_html);
     }
 
-    let error_html = templates::ErrorTemplate::new(&search_word)
-        .render()
-        .unwrap();
+    let error_html = templates::Error::new(&search_word).render().unwrap();
 
     let word = match WordRepository::find_by_word(&mut connection, search_word.clone()) {
         Ok(word) => word,

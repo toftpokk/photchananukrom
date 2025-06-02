@@ -19,7 +19,7 @@ use serde::Deserialize;
 fn generate_word_tags(words: &[String], tag_type: &str) -> String {
     words
         .iter()
-        .map(|word: &String| templates::WordTagTemplate::new(word).render().unwrap())
+        .map(|word: &String| templates::WordTag::new(word).render().unwrap())
         .collect::<Vec<_>>()
         .join("")
 }
@@ -35,7 +35,7 @@ fn generate_word_result_html(word: &models::Word, definitions: Vec<models::Defin
             )
         })
         .collect();
-    return templates::WordResultTemplate::new(&word.word, definition_list)
+    return templates::WordResult::new(&word.word, definition_list)
         .render()
         .unwrap();
 }
@@ -52,8 +52,9 @@ pub struct IndexRequest {
 
 #[get("/")]
 async fn index(query: web::Query<IndexRequest>) -> impl Responder {
-    let html = include_str!("../templates/index.html");
-    HttpResponse::Ok().content_type("text/html").body(html)
+    HttpResponse::Ok()
+        .content_type("text/html")
+        .body(templates::Index::new().render().unwrap())
 }
 
 #[actix_web::main]
