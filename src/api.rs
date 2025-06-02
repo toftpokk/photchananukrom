@@ -1,8 +1,8 @@
 use actix_web::{HttpResponse, Responder, get, post, web};
 
 use crate::{
-    AppState, database, generate_word_result_html, models,
-    models::{DefinitionRepository, WordRepository},
+    AppState, database, generate_query_result, generate_word_result_html,
+    models::{self, DefinitionRepository, WordRepository},
     templates,
 };
 
@@ -37,68 +37,29 @@ struct SearchForm {
 
 #[post("/search")]
 async fn search_word(form: web::Form<SearchForm>) -> impl Responder {
-    let mut connection = database::establish_connection();
+    let word = form.word.trim().to_lowercase();
 
-    // TODO dependency injection
-    let search_word = form.word.trim().to_lowercase();
-
-    // Handle empty search
-    if search_word.is_empty() {
-        let welcome_html = r#"
-            <div class="welcome-message">
-                <h3>Photchananukrom</h3>
-                <p>น. เว็บไซต์รวบรวมคำและความหมายภาษาไทย ดู พจนานุกรม</p>
-            </div>
-        "#;
-        return HttpResponse::Ok()
+    let error_html = templates::Error::new(&word).render().unwrap();
+    let res = match generate_query_result(&word) {
+        Ok(html) => HttpResponse::Ok()
             .content_type("text/html")
-            .body(welcome_html);
-    }
-
-    let error_html = templates::Error::new(&search_word).render().unwrap();
-
-    let word = match WordRepository::find_by_word(&mut connection, search_word.clone()) {
-        Ok(word) => word,
-        Err(err) => match err {
-            models::RepositoryError::NotFound => {
-                return HttpResponse::Ok()
-                    .content_type("text/html")
-                    .body(error_html);
-            }
-            err => {
-                panic!("{}", err)
-            }
-        },
+            .append_header((
+                "HX-Replace-Url",
+                format!(
+                    "?q={}",
+                    percent_encoding::percent_encode(
+                        word.as_bytes(),
+                        percent_encoding::NON_ALPHANUMERIC,
+                    )
+                    .to_string()
+                ),
+            ))
+            .body(html),
+        Err(_) => {
+            return HttpResponse::Ok()
+                .content_type("text/html")
+                .body(error_html);
+        }
     };
-
-    let definitions = match DefinitionRepository::find_by_word(&mut connection, &word) {
-        Ok(defs) => defs,
-        Err(err) => match err {
-            models::RepositoryError::NotFound => {
-                return HttpResponse::Ok()
-                    .content_type("text/html")
-                    .body(error_html);
-            }
-            err => {
-                panic!("{}", err)
-            }
-        },
-    };
-
-    let html = generate_word_result_html(&word, definitions);
-
-    HttpResponse::Ok()
-        .content_type("text/html")
-        .append_header((
-            "HX-Replace-Url",
-            format!(
-                "?q={}",
-                percent_encoding::percent_encode(
-                    search_word.as_bytes(),
-                    percent_encoding::NON_ALPHANUMERIC,
-                )
-                .to_string()
-            ),
-        ))
-        .body(html)
+    res
 }

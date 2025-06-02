@@ -84,9 +84,11 @@ impl<'a> Error<'a> {
 
 #[derive(Template)]
 #[template(path = "index.html")]
-pub struct Index {}
+pub struct Index {
+    query_result: String,
+}
 impl Index {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(query_result: String) -> Self {
+        Self { query_result }
     }
 }

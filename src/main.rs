@@ -13,6 +13,7 @@ mod schema;
 mod templates;
 
 use askama::Template;
+use models::{DefinitionRepository, WordRepository};
 use serde::Deserialize;
 
 // Helper function to generate HTML for word tags
@@ -40,6 +41,47 @@ fn generate_word_result_html(word: &models::Word, definitions: Vec<models::Defin
         .unwrap();
 }
 
+fn generate_query_result(search_word: &String) -> Result<String, ()> {
+    let mut connection = database::establish_connection();
+
+    // Handle empty search
+    if search_word.is_empty() {
+        let welcome_html = r#"
+            <div class="welcome-message">
+                <h3>Photchananukrom</h3>
+                <p>น. เว็บไซต์รวบรวมคำและความหมายภาษาไทย ดู พจนานุกรม</p>
+            </div>
+        "#;
+        return Ok(welcome_html.to_string());
+    }
+
+    let word = match WordRepository::find_by_word(&mut connection, search_word.clone()) {
+        Ok(word) => word,
+        Err(err) => match err {
+            models::RepositoryError::NotFound => {
+                return Err(());
+            }
+            err => {
+                panic!("{}", err)
+            }
+        },
+    };
+
+    let definitions = match DefinitionRepository::find_by_word(&mut connection, &word) {
+        Ok(defs) => defs,
+        Err(err) => match err {
+            models::RepositoryError::NotFound => {
+                return Err(());
+            }
+            err => {
+                panic!("{}", err)
+            }
+        },
+    };
+
+    Ok(generate_word_result_html(&word, definitions))
+}
+
 struct AppState {
     version: String,
     build_date: String,
@@ -47,14 +89,23 @@ struct AppState {
 
 #[derive(Debug, Deserialize)]
 pub struct IndexRequest {
-    q: String,
+    q: Option<String>,
 }
 
 #[get("/")]
 async fn index(query: web::Query<IndexRequest>) -> impl Responder {
-    HttpResponse::Ok()
+    let search_word = query.q.clone().unwrap_or("".to_string());
+    let word = search_word.trim().to_lowercase();
+
+    let error_html = templates::Error::new(&word).render().unwrap();
+    let res = match generate_query_result(&word) {
+        Ok(html) => html,
+        Err(_) => error_html,
+    };
+
+    return HttpResponse::Ok()
         .content_type("text/html")
-        .body(templates::Index::new().render().unwrap())
+        .body(templates::Index::new(res).render().unwrap());
 }
 
 #[actix_web::main]
