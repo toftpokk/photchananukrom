@@ -3,85 +3,41 @@ use std::env;
 use actix_web::{
     App, HttpResponse, HttpServer, Responder,
     cookie::time::{OffsetDateTime, format_description::well_known::Rfc3339},
-    get, post, web,
+    get, web,
 };
-use askama::Template;
-use models::{DefinitionRepository, WordRepository};
 
+mod api;
 mod database;
 mod models;
 mod schema;
+mod templates;
+
+use askama::Template;
 use serde::Deserialize;
-
-#[derive(Debug, Deserialize)]
-struct SearchForm {
-    word: String,
-}
-
-#[derive(Template)]
-#[template(
-    ext = "html",
-    source = r##"
-        <span class="word-tag" hx-post="/search" hx-vals='{"word": "{{ word }}"}' hx-target="#results">{{ word }}</span>
-    "##
-)]
-struct WordTagTemplate<'a> {
-    word: &'a String,
-}
 
 // Helper function to generate HTML for word tags
 fn generate_word_tags(words: &[String], tag_type: &str) -> String {
     words
         .iter()
-        .map(|word: &String| WordTagTemplate { word: word }.render().unwrap())
+        .map(|word: &String| templates::WordTagTemplate::new(word).render().unwrap())
         .collect::<Vec<_>>()
         .join("")
 }
 
-#[derive(Template)]
-#[template(
-    ext = "html",
-    source = r#"
-    <div class="word-result">
-        <div class="word-header">
-            <div class="word-title">{{ title }}</div>
-        </div>
-        <div class="definitions">
-        {% for definition in definitions %}
-            {{ definition.definition_header }}
-            <div class="definition-group">
-                <div class="definition-text">{{ definition.definition_body | safe }}</div>
-            </div>
-        {% endfor %}
-        </div>
-    </div>
-    "#
-)]
-struct WordResultTemplate<'a> {
-    title: &'a String,
-    definitions: Vec<Definition>,
-}
-
-pub struct Definition {
-    definition_header: String,
-    definition_body: String,
-}
-
 // Generate HTML for word result
 fn generate_word_result_html(word: &models::Word, definitions: Vec<models::Definition>) -> String {
-    let definition_objs = definitions
+    let definition_list = definitions
         .iter()
-        .map(|x| Definition {
-            definition_body: models::DefinitionBody::from(&x.definition).to_string(),
-            definition_header: x.definition_header.to_string(),
+        .map(|x| {
+            templates::Definition::new(
+                x.definition_header.to_string(),
+                models::DefinitionBody::from(&x.definition).to_string(),
+            )
         })
         .collect();
-    return WordResultTemplate {
-        title: &word.word,
-        definitions: definition_objs,
-    }
-    .render()
-    .unwrap();
+    return templates::WordResultTemplate::new(&word.word, definition_list)
+        .render()
+        .unwrap();
 }
 
 struct AppState {
@@ -89,117 +45,15 @@ struct AppState {
     build_date: String,
 }
 
-#[get("/health")]
-async fn health(data: web::Data<AppState>) -> impl Responder {
-    HttpResponse::Ok().json(serde_json::json!({
-        "status": "healthy",
-        "service": "dictionary-api",
-        "version": data.version,
-        "build_date": data.build_date,
-    }))
-}
-
-#[get("/quick-links")]
-async fn quick_links() -> impl Responder {
-    let quick_links = r##"
-    <div class="quick-link" hx-post="/search" hx-vals='{"word": "eloquent"}' hx-target="#results">eloquent
-    </div>
-    "##;
-    return HttpResponse::Ok()
-        .content_type("text/html")
-        .body(quick_links);
-}
-
-#[derive(Template)]
-#[template(
-    ext = "html",
-    source = r#"
-    <div class="error">
-        <h3>Word not found</h3>
-        <p>Sorry, we couldn't find "{{ search_word }}" in our dictionary. Try checking the spelling or searching for a different word.</p>
-    </div>
-    "#
-)]
-struct ErrorTemplate<'a> {
-    search_word: &'a String,
+#[derive(Debug, Deserialize)]
+pub struct IndexRequest {
+    q: String,
 }
 
 #[get("/")]
-async fn index(data: web::Data<AppState>) -> impl Responder {
+async fn index(query: web::Query<IndexRequest>) -> impl Responder {
     let html = include_str!("../templates/index.html");
     HttpResponse::Ok().content_type("text/html").body(html)
-}
-
-#[post("/search")]
-async fn search_word(form: web::Form<SearchForm>) -> impl Responder {
-    let mut connection = database::establish_connection();
-
-    // TODO dependency injection
-    let search_word = form.word.trim().to_lowercase();
-
-    // Handle empty search
-    if search_word.is_empty() {
-        let welcome_html = r#"
-            <div class="welcome-message">
-                <h3>Photchananukrom</h3>
-                <p>น. เว็บไซต์รวบรวมคำและความหมายภาษาไทย ดู พจนานุกรม</p>
-            </div>
-        "#;
-        return HttpResponse::Ok()
-            .content_type("text/html")
-            .body(welcome_html);
-    }
-
-    let error_html = ErrorTemplate {
-        search_word: &search_word,
-    }
-    .render()
-    .unwrap();
-
-    let word = match WordRepository::find_by_word(&mut connection, search_word.clone()) {
-        Ok(word) => word,
-        Err(err) => match err {
-            models::RepositoryError::NotFound => {
-                return HttpResponse::Ok()
-                    .content_type("text/html")
-                    .body(error_html);
-            }
-            err => {
-                panic!("{}", err)
-            }
-        },
-    };
-
-    let definitions = match DefinitionRepository::find_by_word(&mut connection, &word) {
-        Ok(defs) => defs,
-        Err(err) => match err {
-            models::RepositoryError::NotFound => {
-                return HttpResponse::Ok()
-                    .content_type("text/html")
-                    .body(error_html);
-            }
-            err => {
-                panic!("{}", err)
-            }
-        },
-    };
-
-    let html = generate_word_result_html(&word, definitions);
-
-    HttpResponse::Ok()
-        .content_type("text/html")
-        .append_header((
-            "HX-Replace-Url",
-            format!(
-                "?q={}",
-                percent_encoding::percent_encode(
-                    search_word.as_bytes(),
-                    percent_encoding::NON_ALPHANUMERIC,
-                )
-                .to_string()
-            ),
-        ))
-        .body(html)
 }
 
 #[actix_web::main]
@@ -224,10 +78,10 @@ async fn main() -> std::io::Result<()> {
                 version: version.clone(),
                 build_date: build_date.clone(),
             }))
-            .service(health)
+            .service(api::health)
+            .service(api::search_word)
+            .service(api::quick_links)
             .service(index)
-            .service(search_word)
-            .service(quick_links)
     })
     .bind(("0.0.0.0", 8080))?
     .run()
