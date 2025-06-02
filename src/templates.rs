@@ -92,3 +92,24 @@ impl Index {
         Self { query_result }
     }
 }
+
+#[derive(Template)]
+#[template(
+    ext = "html",
+    source = r##"
+    {% for link in links %}
+        <div class="quick-link" hx-post="/search" hx-vals='{"word": "{{ link.0 }}"}' hx-target="#results">
+            {{ link.1 }}
+        </div>
+    {% endfor %}
+    "##
+)]
+pub struct QuickLinks<'a> {
+    links: Vec<(&'a str, &'a str)>,
+}
+
+impl<'a> QuickLinks<'a> {
+    pub fn new(links: Vec<(&'a str, &'a str)>) -> Self {
+        Self { links }
+    }
+}

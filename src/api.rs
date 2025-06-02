@@ -21,13 +21,19 @@ pub async fn health(data: web::Data<AppState>) -> impl Responder {
 
 #[get("/quick-links")]
 async fn quick_links() -> impl Responder {
-    let quick_links = r##"
-    <div class="quick-link" hx-post="/search" hx-vals='{"word": "eloquent"}' hx-target="#results">eloquent
-    </div>
-    "##;
+    let links = vec![
+        ("กฎเกณฑ์", "กฎเกณฑ์"),
+        ("กกเสา", "กกเสา"),
+        ("กงวาน", "กงวาน"),
+        ("ก้นกบ", "ก้นกบ"),
+        ("กช-", "กช-"),
+        ("กฎบัตรสหประชาชาติ", "กฎบัตรสหประชาชาติ"),
+        ("กฎหมายพาณิชย์", "กฎหมายพาณิชย์"),
+    ];
+    let quick_links = templates::QuickLinks::new(links);
     return HttpResponse::Ok()
         .content_type("text/html")
-        .body(quick_links);
+        .body(quick_links.render().unwrap());
 }
 
 #[derive(Debug, Deserialize)]
